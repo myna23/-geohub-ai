@@ -1,0 +1,20 @@
+# API keys - NEVER commit this
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Generated reports (demo output)
+demo_report.docx
+demo_report.pdf
+
+# Mac
+.DS_Store
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
