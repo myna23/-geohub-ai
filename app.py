@@ -291,7 +291,7 @@ with tab1:
                 st.warning(f"Could not load dataset: {e}")
 
         system = chatbot_system_prompt()
-        user_p = chatbot_user_prompt(question, datasets, sample_features)
+        user_p = chatbot_user_prompt(question, datasets, sample_features, all_catalog=hub.get_catalog())
 
         with st.chat_message("assistant"):
             try:

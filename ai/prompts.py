@@ -15,17 +15,20 @@ import json
 def chatbot_system_prompt() -> str:
     return (
         "You are an AI assistant for the Zambia GeoHub (zmb-geowb.hub.arcgis.com). "
-        "You ONLY answer questions using data provided to you from the Zambia GeoHub datasets. "
-        "You do NOT use any general knowledge, external sources, or information outside of what is given to you.\n\n"
-        "STRICT RULES:\n"
-        "- If the provided dataset samples do not contain enough information to answer the question, "
-        "respond with: 'This information is not available in the current Zambia GeoHub datasets. "
-        "Please check the Hub directly at zmb-geowb.hub.arcgis.com for more datasets.'\n"
-        "- NEVER make up statistics, estimates, or facts not present in the data.\n"
-        "- NEVER answer from general knowledge about Zambia or any other topic.\n"
-        "- Always cite the exact dataset name you used to answer.\n"
-        "- Be concise and factual — 3 to 5 sentences unless a list is clearer.\n"
-        "- If data is a sample (not the full dataset), state that clearly."
+        "Your job is to help users understand and explore Zambia's geospatial data.\n\n"
+        "RULES:\n"
+        "- Answer using the dataset names, descriptions, and sample records provided to you.\n"
+        "- If sample records are provided, use them to give specific answers.\n"
+        "- If no sample records are provided but dataset names/descriptions are, "
+        "describe what those datasets contain and how they could answer the question.\n"
+        "- If the question asks what data is available, list the datasets provided to you.\n"
+        "- NEVER invent statistics or facts not present in the data.\n"
+        "- Do NOT answer from general world knowledge — only from what is given to you.\n"
+        "- Always cite the dataset name you used.\n"
+        "- Be concise and helpful — 3 to 5 sentences unless a list is clearer.\n"
+        "- If data is genuinely not available in any provided dataset, say: "
+        "'This specific information is not in the current GeoHub datasets loaded. "
+        "Try searching for a more specific dataset on zmb-geowb.hub.arcgis.com.'"
     )
 
 
@@ -33,31 +36,56 @@ def chatbot_user_prompt(
     question: str,
     datasets: list[dict],
     sample_features: list[dict],
+    all_catalog: list[dict] = None,
 ) -> str:
     """
     Build the user-turn prompt for the chatbot.
 
-    datasets       : list of cleaned dataset dicts from HubClient
-    sample_features: list of feature property dicts (up to 5)
+    datasets       : matched datasets from HubClient search
+    sample_features: feature property dicts (may be empty if fetch failed)
+    all_catalog    : full catalog list to show what data exists on the Hub
     """
+    # Matched datasets context
     dataset_context = ""
-    for i, ds in enumerate(datasets[:3], 1):
+    for i, ds in enumerate(datasets[:5], 1):
+        fields_str = ", ".join(f["name"] for f in ds.get("fields", [])[:15])
         dataset_context += (
             f"\nDataset {i}: {ds['name']}\n"
-            f"  Description: {ds['description'][:200]}\n"
-            f"  Fields: {', '.join(f['name'] for f in ds.get('fields', [])[:15])}\n"
+            f"  Description: {ds['description'][:250]}\n"
+        )
+        if fields_str:
+            dataset_context += f"  Fields: {fields_str}\n"
+
+    if not dataset_context:
+        dataset_context = "No matching datasets found for this query.\n"
+
+    # Sample records
+    if sample_features:
+        sample_section = (
+            f"Sample records from top dataset ({len(sample_features)} records):\n"
+            f"```json\n{json.dumps(sample_features[:5], indent=2)}\n```\n"
+        )
+    else:
+        sample_section = (
+            "No sample records were loaded (dataset may be empty or unavailable). "
+            "Answer based on the dataset names and descriptions above.\n"
         )
 
-    sample_json = json.dumps(sample_features[:5], indent=2)
+    # Full catalog overview (so AI knows what exists)
+    catalog_overview = ""
+    if all_catalog:
+        catalog_overview = "\nAll datasets currently available on the Zambia GeoHub:\n"
+        for ds in all_catalog:
+            catalog_overview += f"  - {ds['name']}: {ds['description'][:100]}\n"
 
     return (
         f"Question: {question}\n\n"
-        f"Available datasets from the Zambia GeoHub:\n{dataset_context}\n"
-        f"Sample feature data (first {len(sample_features)} records):\n"
-        f"```json\n{sample_json}\n```\n\n"
-        "Please answer the question using the data above. "
-        "If the sample is too small to give a definitive answer, say so and explain "
-        "what additional data would be needed."
+        f"Matched datasets from the Zambia GeoHub:\n{dataset_context}\n"
+        f"{sample_section}"
+        f"{catalog_overview}\n"
+        "Answer the question using the information above. "
+        "If sample records are available use them for specific answers. "
+        "If only dataset descriptions are available, describe what the dataset covers and how it relates to the question."
     )
 
 
