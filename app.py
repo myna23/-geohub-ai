@@ -1,14 +1,14 @@
 """
-Zambia GeoHub AI Platform — Streamlit App
-==========================================
+Zambia GeoHub AI — Single intelligent chat interface.
+
+The AI detects intent from the user's message:
+  - Questions / exploration  → answer with map
+  - "generate a report"      → build report, offer Word + PDF download
+  - "summarise / summarize"  → plain-language dataset summary
+  - "what data is available" → list the catalog
+
 Run locally:
     streamlit run app.py
-
-Features:
-  Tab 1 — AI Chatbot     : Q&A with edit prompt + PDF/Word download per response
-  Tab 2 — Report Generator: full dataset reports
-  Tab 3 — Dataset Summarizer: plain-language summaries
-  Floating widget        : pop-up chat bubble for Hub embedding
 """
 
 import streamlit as st
@@ -34,136 +34,71 @@ st.set_page_config(
     page_title="Zambia GeoHub AI",
     page_icon="🗺️",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 # ---------------------------------------------------------------------------
-# Floating chat widget CSS + JS (for Hub embedding)
+# Styling — clean, Hub-like look
 # ---------------------------------------------------------------------------
 st.markdown("""
 <style>
-/* Floating chat button */
+/* Floating chat bubble (for Hub iframe embed) */
 #zmb-chat-btn {
-    position: fixed;
-    bottom: 28px;
-    right: 28px;
-    width: 58px;
-    height: 58px;
-    border-radius: 50%;
-    background: #1d3557;
-    color: white;
-    font-size: 26px;
-    border: none;
-    cursor: pointer;
+    position: fixed; bottom: 28px; right: 28px;
+    width: 58px; height: 58px; border-radius: 50%;
+    background: #1d3557; color: white; font-size: 26px;
+    border: none; cursor: pointer;
     box-shadow: 0 4px 16px rgba(0,0,0,0.25);
-    z-index: 9999;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    z-index: 9999; display: flex;
+    align-items: center; justify-content: center;
 }
 #zmb-chat-btn:hover { background: #457b9d; }
-
-/* Floating chat panel */
 #zmb-chat-panel {
-    position: fixed;
-    bottom: 100px;
-    right: 28px;
-    width: 380px;
-    height: 520px;
-    background: white;
-    border-radius: 16px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-    z-index: 9998;
-    display: none;
-    flex-direction: column;
-    overflow: hidden;
-    border: 1px solid #e0e0e0;
+    position: fixed; bottom: 100px; right: 28px;
+    width: 380px; height: 520px; background: white;
+    border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    z-index: 9998; display: none; flex-direction: column;
+    overflow: hidden; border: 1px solid #e0e0e0;
 }
 #zmb-chat-panel.open { display: flex; }
-
 #zmb-chat-header {
-    background: #1d3557;
-    color: white;
-    padding: 14px 18px;
-    font-weight: 600;
-    font-size: 15px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    background: #1d3557; color: white;
+    padding: 14px 18px; font-weight: 600; font-size: 15px;
+    display: flex; justify-content: space-between; align-items: center;
 }
-#zmb-chat-close {
-    cursor: pointer;
-    font-size: 20px;
-    background: none;
-    border: none;
-    color: white;
-}
-#zmb-chat-body {
-    flex: 1;
-    overflow-y: auto;
-    padding: 14px;
-    font-size: 13px;
-    background: #f8fbfd;
-}
-#zmb-chat-footer {
-    padding: 10px;
-    border-top: 1px solid #eee;
-    display: flex;
-    gap: 8px;
-    background: white;
-}
-#zmb-chat-input {
-    flex: 1;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    padding: 8px 12px;
-    font-size: 13px;
-    outline: none;
-}
-#zmb-chat-send {
-    background: #1d3557;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 8px 14px;
-    cursor: pointer;
-    font-size: 13px;
-}
+#zmb-chat-close { cursor: pointer; font-size: 20px; background: none; border: none; color: white; }
+#zmb-chat-body { flex: 1; overflow-y: auto; padding: 14px; font-size: 13px; background: #f8fbfd; }
+#zmb-chat-footer { padding: 10px; border-top: 1px solid #eee; display: flex; gap: 8px; background: white; }
+#zmb-chat-input { flex: 1; border: 1px solid #ccc; border-radius: 8px; padding: 8px 12px; font-size: 13px; outline: none; }
+#zmb-chat-send { background: #1d3557; color: white; border: none; border-radius: 8px; padding: 8px 14px; cursor: pointer; font-size: 13px; }
 #zmb-chat-send:hover { background: #457b9d; }
-.zmb-msg-user {
-    background: #1d3557;
-    color: white;
-    border-radius: 12px 12px 2px 12px;
-    padding: 8px 12px;
-    margin: 6px 0 6px 30px;
-    font-size: 13px;
+.zmb-msg-user { background: #1d3557; color: white; border-radius: 12px 12px 2px 12px; padding: 8px 12px; margin: 6px 0 6px 30px; font-size: 13px; }
+.zmb-msg-ai { background: white; border: 1px solid #dde; border-radius: 12px 12px 12px 2px; padding: 8px 12px; margin: 6px 30px 6px 0; font-size: 13px; }
+
+/* Intent badge */
+.intent-badge {
+    display: inline-block; font-size: 11px; font-weight: 600;
+    padding: 2px 10px; border-radius: 20px; margin-bottom: 6px;
 }
-.zmb-msg-ai {
-    background: white;
-    border: 1px solid #dde;
-    border-radius: 12px 12px 12px 2px;
-    padding: 8px 12px;
-    margin: 6px 30px 6px 0;
-    font-size: 13px;
-}
+.intent-chat    { background: #e8f4fd; color: #1d3557; }
+.intent-report  { background: #e8f8f0; color: #1a6b3c; }
+.intent-summary { background: #fff4e6; color: #7a4800; }
 </style>
 
 <button id="zmb-chat-btn" title="Ask the Zambia GeoHub AI">🗺️</button>
-
 <div id="zmb-chat-panel">
   <div id="zmb-chat-header">
     <span>Zambia GeoHub AI</span>
     <button id="zmb-chat-close">✕</button>
   </div>
   <div id="zmb-chat-body">
-    <div class="zmb-msg-ai">Hi! Ask me anything about Zambia's geospatial data — health facilities, roads, districts, water, and more.</div>
+    <div class="zmb-msg-ai">Hi! Ask me anything about Zambia's geospatial data, or say "generate a report on health facilities" or "summarise the schools dataset".</div>
   </div>
   <div id="zmb-chat-footer">
     <input id="zmb-chat-input" type="text" placeholder="Ask about Zambia data..." />
     <button id="zmb-chat-send">Send</button>
   </div>
 </div>
-
 <script>
 const btn = document.getElementById('zmb-chat-btn');
 const panel = document.getElementById('zmb-chat-panel');
@@ -171,10 +106,8 @@ const closeBtn = document.getElementById('zmb-chat-close');
 const input = document.getElementById('zmb-chat-input');
 const sendBtn = document.getElementById('zmb-chat-send');
 const body = document.getElementById('zmb-chat-body');
-
 btn.onclick = () => panel.classList.toggle('open');
 closeBtn.onclick = () => panel.classList.remove('open');
-
 function addMsg(text, role) {
     const div = document.createElement('div');
     div.className = role === 'user' ? 'zmb-msg-user' : 'zmb-msg-ai';
@@ -182,419 +115,303 @@ function addMsg(text, role) {
     body.appendChild(div);
     body.scrollTop = body.scrollHeight;
 }
-
 sendBtn.onclick = () => {
     const q = input.value.trim();
     if (!q) return;
     addMsg(q, 'user');
     input.value = '';
-    addMsg('Searching Zambia GeoHub data...', 'ai');
-    // Note: full AI response handled in main Streamlit tab
-    // This widget is a visual preview for Hub embedding
-    // For full AI: open the main tab or use the full app URL
-    setTimeout(() => {
-        body.lastChild.innerText = 'For a full AI response with maps and reports, use the chat tab above or open the full app.';
-    }, 1200);
+    setTimeout(() => addMsg('Use the main chat above for full AI responses with maps and downloads.', 'ai'), 800);
 };
-
 input.addEventListener('keydown', e => { if (e.key === 'Enter') sendBtn.click(); });
 </script>
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------
-# Sidebar
-# ---------------------------------------------------------------------------
-with st.sidebar:
-    st.markdown("## Zambia GeoHub AI")
-    st.markdown("AI-powered analysis of Zambia's national geospatial datasets.")
-    st.markdown("---")
-    max_features = st.slider("Max features to load per dataset", 50, 500, 200, step=50)
-    st.markdown("---")
-    st.markdown("**Data source:** [zmb-geowb.hub.arcgis.com](https://zmb-geowb.hub.arcgis.com)")
-    st.caption("Data may reflect a sample. Always verify against official sources.")
-
-# ---------------------------------------------------------------------------
-# Shared clients (cached)
+# Clients
 # ---------------------------------------------------------------------------
 @st.cache_resource(show_spinner=False)
-def get_hub():
-    return HubClient()
+def get_hub(): return HubClient()
 
 @st.cache_resource(show_spinner=False)
-def get_claude():
-    return ClaudeClient()
+def get_claude(): return ClaudeClient()
 
 @st.cache_resource(show_spinner=False)
-def get_report_builder():
-    return ReportBuilder()
+def get_builder(): return ReportBuilder()
 
 hub = get_hub()
 claude = get_claude()
-builder = get_report_builder()
+builder = get_builder()
 
 # ---------------------------------------------------------------------------
 # Session state
 # ---------------------------------------------------------------------------
-defaults = {
-    "chat_messages": [],       # [{role, content, question, datasets, geojson}]
-    "chat_last_map": None,
-    "chat_edit_idx": None,     # index of message being edited
-    "report_search_results": [],
-    "report_selected": None,
-    "report_geojson": None,
-    "report_content": None,
-    "report_docx": None,
-    "report_pdf": None,
-    "sum_search_results": [],
-    "sum_selected": None,
-    "sum_geojson": None,
-    "sum_content": None,
-    "sum_stats": None,
-}
-for k, v in defaults.items():
-    if k not in st.session_state:
-        st.session_state[k] = v
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+if "edit_idx" not in st.session_state:
+    st.session_state.edit_idx = None
 
 # ---------------------------------------------------------------------------
-# Tabs
+# Intent detection
 # ---------------------------------------------------------------------------
-tab1, tab2, tab3 = st.tabs(["💬 AI Chatbot", "📄 Report Generator", "🔍 Dataset Summarizer"])
+def detect_intent(text: str) -> str:
+    t = text.lower()
+    if any(w in t for w in ["report", "generate report", "write report", "create report"]):
+        return "report"
+    if any(w in t for w in ["summarise", "summarize", "summary", "overview", "brief"]):
+        return "summary"
+    return "chat"
 
-# ===========================================================================
-# TAB 1 — AI CHATBOT  (with edit prompt + report download per response)
-# ===========================================================================
-with tab1:
-    st.markdown("### Ask anything about Zambia's GeoHub data")
-    st.caption("Ask about health facilities, roads, districts, water, schools, and more.")
+# ---------------------------------------------------------------------------
+# Header
+# ---------------------------------------------------------------------------
+col_logo, col_title = st.columns([1, 8])
+with col_title:
+    st.markdown("## Zambia GeoHub AI Assistant")
+    st.caption(
+        "Ask questions about Zambia's geospatial data • Say **'generate a report on...'** for Word/PDF reports "
+        "• Say **'summarise...'** for dataset summaries • Ask **'what data is available?'** to explore the Hub"
+    )
+st.markdown("---")
 
-    def run_query(question: str):
-        """Run a question through the AI and append results to chat history."""
-        with st.spinner("Searching GeoHub datasets..."):
-            try:
-                datasets = hub.search_datasets(question, max_results=5)
-            except Exception as e:
-                datasets = []
-                st.warning(f"Hub search failed: {e}")
-
-        sample_features = []
-        geojson = None
-        folium_map = None
-
-        if datasets:
-            top = datasets[0]
-            try:
-                with st.spinner(f"Loading '{top['name']}' data..."):
-                    geojson = hub.fetch_geojson(top["url"], max_features=max_features)
-                    sample_features = geojson_to_sample_rows(geojson, n=5)
-                    folium_map = make_folium_map(geojson, top["name"])
-            except Exception as e:
-                st.warning(f"Could not load dataset: {e}")
-
-        system = chatbot_system_prompt()
-        user_p = chatbot_user_prompt(question, datasets, sample_features, all_catalog=hub.get_catalog())
-
+# ---------------------------------------------------------------------------
+# Render chat history
+# ---------------------------------------------------------------------------
+for i, msg in enumerate(st.session_state.messages):
+    if msg["role"] == "user":
+        with st.chat_message("user"):
+            st.markdown(msg["content"])
+    else:
         with st.chat_message("assistant"):
-            try:
-                response_text = st.write_stream(claude.stream(system, user_p, max_tokens=1500))
-            except Exception as e:
-                response_text = f"AI error: {e}"
-                st.error(response_text)
+            # Intent badge
+            intent = msg.get("intent", "chat")
+            badge_label = {"chat": "Answer", "report": "Report", "summary": "Summary"}.get(intent, "Answer")
+            badge_class = {"chat": "intent-chat", "report": "intent-report", "summary": "intent-summary"}.get(intent, "intent-chat")
+            st.markdown(f'<span class="intent-badge {badge_class}">{badge_label}</span>', unsafe_allow_html=True)
 
-            if datasets:
-                with st.expander("Datasets searched"):
-                    for ds in datasets:
-                        st.markdown(f"- **{ds['name']}** — {ds['description'][:120]}")
+            st.markdown(msg["content"])
 
-        st.session_state.chat_messages.append({
-            "role": "assistant",
-            "content": response_text,
-            "question": question,
-            "datasets": datasets,
-            "geojson": geojson,
-        })
+            # Download buttons for reports
+            if msg.get("docx_bytes") and msg.get("pdf_bytes"):
+                st.markdown("**Download report:**")
+                c1, c2 = st.columns(2)
+                ds_name = msg.get("ds_name", "report")
+                c1.download_button(
+                    "⬇️ Word (.docx)", msg["docx_bytes"],
+                    file_name=f"{ds_name.replace(' ','_')}_report.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    key=f"docx_{i}", use_container_width=True,
+                )
+                c2.download_button(
+                    "⬇️ PDF", msg["pdf_bytes"],
+                    file_name=f"{ds_name.replace(' ','_')}_report.pdf",
+                    mime="application/pdf",
+                    key=f"pdf_{i}", use_container_width=True,
+                )
 
-        if folium_map:
-            st.session_state.chat_last_map = folium_map
+            # Download button for summaries
+            if msg.get("summary_txt"):
+                st.download_button(
+                    "⬇️ Download Summary (.txt)", msg["summary_txt"],
+                    file_name=f"{msg.get('ds_name','summary').replace(' ','_')}_summary.txt",
+                    mime="text/plain",
+                    key=f"sum_{i}",
+                )
 
-    # Render existing messages
-    for i, msg in enumerate(st.session_state.chat_messages):
-        if msg["role"] == "user":
-            with st.chat_message("user"):
-                st.markdown(msg["content"])
-        else:
-            with st.chat_message("assistant"):
-                st.markdown(msg["content"])
+            # Map
+            if msg.get("geojson") and msg.get("ds_name"):
+                m = make_folium_map(msg["geojson"], msg["ds_name"])
+                st_folium(m, width=720, height=340, returned_objects=[], key=f"map_{i}")
 
-                # --- Edit prompt button ---
-                col_edit, col_rpt, col_blank = st.columns([1, 1, 4])
-                with col_edit:
-                    if st.button("✏️ Edit prompt", key=f"edit_{i}"):
-                        st.session_state.chat_edit_idx = i - 1  # point to user msg before this
-                        st.rerun()
-                with col_rpt:
-                    # Generate report from this response's dataset
-                    if msg.get("datasets") and msg.get("geojson"):
-                        if st.button("📄 Get Report", key=f"rpt_{i}"):
-                            ds = msg["datasets"][0]
-                            gj = msg["geojson"]
-                            stats = summarize_geojson(gj)
-                            samples = geojson_to_sample_rows(gj, n=10)
-                            with st.spinner("Generating report..."):
-                                rpt_text = claude.ask(
-                                    system=report_system_prompt(),
-                                    user=report_prompt(ds["name"], ds["description"], ds["fields"], stats, samples),
-                                    max_tokens=3000,
-                                )
-                                docx_bytes = builder.to_docx(ds["name"], rpt_text, ds)
-                                pdf_bytes = builder.to_pdf(ds["name"], rpt_text, ds)
+            # Edit prompt button
+            col_e, col_blank = st.columns([1, 6])
+            with col_e:
+                if st.button("✏️ Edit prompt", key=f"edit_{i}"):
+                    st.session_state.edit_idx = i - 1
+                    st.rerun()
 
-                            st.markdown("**Download report:**")
-                            c1, c2 = st.columns(2)
-                            c1.download_button(
-                                "⬇️ Word (.docx)", docx_bytes,
-                                file_name=f"{ds['name'].replace(' ','_')}_report.docx",
-                                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                key=f"docx_{i}", use_container_width=True,
-                            )
-                            c2.download_button(
-                                "⬇️ PDF", pdf_bytes,
-                                file_name=f"{ds['name'].replace(' ','_')}_report.pdf",
-                                mime="application/pdf",
-                                key=f"pdf_{i}", use_container_width=True,
-                            )
-
-                # Show map for this message
-                if msg.get("geojson"):
-                    m = make_folium_map(msg["geojson"], msg["datasets"][0]["name"] if msg.get("datasets") else "")
-                    st_folium(m, width=720, height=340, returned_objects=[], key=f"map_{i}")
-
-    # --- Edit prompt area ---
-    edit_idx = st.session_state.get("chat_edit_idx")
-    if edit_idx is not None and edit_idx < len(st.session_state.chat_messages):
-        original_q = st.session_state.chat_messages[edit_idx]["content"]
+# ---------------------------------------------------------------------------
+# Edit prompt UI
+# ---------------------------------------------------------------------------
+if st.session_state.edit_idx is not None:
+    idx = st.session_state.edit_idx
+    if idx < len(st.session_state.messages):
+        original = st.session_state.messages[idx]["content"]
         st.markdown("---")
         st.markdown("**Edit your prompt:**")
-        edited = st.text_area("Edit prompt", value=original_q, key="edit_text_area", height=80)
-        col_a, col_b = st.columns([1, 5])
-        with col_a:
-            if st.button("Submit edit", type="primary"):
-                # Remove everything from the edited message onwards
-                st.session_state.chat_messages = st.session_state.chat_messages[:edit_idx]
-                st.session_state.chat_edit_idx = None
-                # Add edited user message
-                st.session_state.chat_messages.append({"role": "user", "content": edited})
-                run_query(edited)
+        edited = st.text_area("", value=original, height=80, key="edit_area")
+        ca, cb = st.columns([1, 6])
+        with ca:
+            submit = st.button("Submit", type="primary", key="submit_edit")
+        with cb:
+            if st.button("Cancel", key="cancel_edit"):
+                st.session_state.edit_idx = None
                 st.rerun()
-        with col_b:
-            if st.button("Cancel"):
-                st.session_state.chat_edit_idx = None
-                st.rerun()
-    else:
-        # Normal chat input
-        if question := st.chat_input("Ask about Zambia's GeoHub data..."):
-            with st.chat_message("user"):
-                st.markdown(question)
-            st.session_state.chat_messages.append({"role": "user", "content": question})
-            run_query(question)
+        if submit:
+            st.session_state.messages = st.session_state.messages[:idx]
+            st.session_state.edit_idx = None
+            st.session_state._pending_question = edited
             st.rerun()
 
-    if st.session_state.chat_messages:
-        if st.button("🗑️ Clear conversation", key="clear_chat"):
-            st.session_state.chat_messages = []
-            st.session_state.chat_last_map = None
-            st.session_state.chat_edit_idx = None
-            st.rerun()
+# ---------------------------------------------------------------------------
+# Process a question (either new or edited)
+# ---------------------------------------------------------------------------
+def process_question(question: str):
+    intent = detect_intent(question)
 
-# ===========================================================================
-# TAB 2 — REPORT GENERATOR
-# ===========================================================================
-with tab2:
-    st.markdown("### Generate a professional report from any dataset")
-    st.caption("Search for a dataset, select it, and download a formatted Word or PDF report.")
+    # Search Hub
+    with st.spinner("Searching Zambia GeoHub..."):
+        try:
+            datasets = hub.search_datasets(question, max_results=5)
+        except Exception:
+            datasets = []
 
-    col_search, col_btn = st.columns([4, 1])
-    with col_search:
-        report_query = st.text_input(
-            "Search for a dataset",
-            placeholder="e.g. health facilities, roads, population density",
-            key="report_query",
-            label_visibility="collapsed",
-        )
-    with col_btn:
-        if st.button("Search", key="report_search_btn", use_container_width=True):
-            if report_query.strip():
-                with st.spinner("Searching GeoHub..."):
-                    try:
-                        results = hub.search_datasets(report_query, max_results=10)
-                        st.session_state.report_search_results = results
-                        st.session_state.report_content = None
-                        st.session_state.report_selected = None
-                    except Exception as e:
-                        st.error(f"Search failed: {e}")
+    geojson = None
+    sample_features = []
 
-    if st.session_state.report_search_results:
-        options = {ds["name"]: ds for ds in st.session_state.report_search_results}
-        selected_name = st.selectbox("Select a dataset", list(options.keys()), key="report_selectbox")
-        st.session_state.report_selected = options[selected_name]
+    if datasets:
+        with st.spinner(f"Loading data from '{datasets[0]['name']}'..."):
+            try:
+                geojson = hub.fetch_geojson(datasets[0]["url"])
+                sample_features = geojson_to_sample_rows(geojson, n=10)
+            except Exception:
+                pass
 
-        if st.button("📄 Generate Report", key="generate_report_btn", type="primary"):
-            ds = st.session_state.report_selected
-            with st.spinner(f"Loading '{ds['name']}' data..."):
-                try:
-                    geojson = hub.fetch_geojson(ds["url"], max_features=max_features)
-                    st.session_state.report_geojson = geojson
-                except Exception as e:
-                    st.error(f"Failed to load dataset: {e}")
-                    st.stop()
+    ds = datasets[0] if datasets else {}
 
-            geojson = st.session_state.report_geojson
-            stats = summarize_geojson(geojson)
-            samples = geojson_to_sample_rows(geojson, n=10)
+    # --- REPORT ---
+    if intent == "report":
+        with st.chat_message("assistant"):
+            st.markdown('<span class="intent-badge intent-report">Report</span>', unsafe_allow_html=True)
+            if not ds:
+                response = "I could not find a matching dataset on the Zambia GeoHub for your report request. Please try a more specific dataset name."
+                st.markdown(response)
+                st.session_state.messages.append({"role": "assistant", "content": response, "intent": intent})
+                return
 
-            if stats.get("exceeded_limit"):
-                st.info("Dataset exceeds transfer limit — report is based on a sample.")
+            with st.spinner("Generating report (~15 seconds)..."):
+                stats = summarize_geojson(geojson) if geojson else {"feature_count": 0, "geometry_type": "Unknown", "fields": [], "numeric_stats": {}, "exceeded_limit": False}
+                rpt_text = claude.ask(
+                    system=report_system_prompt(),
+                    user=report_prompt(ds["name"], ds["description"], ds.get("fields", []), stats, sample_features),
+                    max_tokens=3000,
+                )
 
-            with st.spinner("Generating AI report (~15 seconds)..."):
-                try:
-                    rpt_text = claude.ask(
-                        system=report_system_prompt(),
-                        user=report_prompt(ds["name"], ds["description"], ds["fields"], stats, samples),
-                        max_tokens=3000,
-                    )
-                    st.session_state.report_content = rpt_text
-                except Exception as e:
-                    st.error(f"AI generation failed: {e}")
-                    st.stop()
+            with st.spinner("Building Word and PDF..."):
+                docx_bytes = builder.to_docx(ds["name"], rpt_text, ds)
+                pdf_bytes = builder.to_pdf(ds["name"], rpt_text, ds)
 
-            with st.spinner("Building Word and PDF files..."):
-                try:
-                    st.session_state.report_docx = builder.to_docx(ds["name"], rpt_text, ds)
-                    st.session_state.report_pdf = builder.to_pdf(ds["name"], rpt_text, ds)
-                except Exception as e:
-                    st.error(f"Document build failed: {e}")
-                    st.stop()
-
-    if st.session_state.report_content:
-        ds = st.session_state.report_selected
-        st.markdown("---")
-        st.markdown(f"#### Report: {ds['name']}")
-
-        col_dl1, col_dl2 = st.columns(2)
-        with col_dl1:
-            st.download_button(
-                "⬇️ Download Word (.docx)", st.session_state.report_docx,
-                file_name=f"{ds['name'].replace(' ', '_')}_report.docx",
+            st.markdown(f"**Report: {ds['name']}**")
+            st.markdown(rpt_text)
+            st.markdown("**Download report:**")
+            c1, c2 = st.columns(2)
+            c1.download_button("⬇️ Word (.docx)", docx_bytes,
+                file_name=f"{ds['name'].replace(' ','_')}_report.docx",
                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                use_container_width=True,
-            )
-        with col_dl2:
-            st.download_button(
-                "⬇️ Download PDF", st.session_state.report_pdf,
-                file_name=f"{ds['name'].replace(' ', '_')}_report.pdf",
-                mime="application/pdf",
-                use_container_width=True,
-            )
+                key="dl_docx_new", use_container_width=True)
+            c2.download_button("⬇️ PDF", pdf_bytes,
+                file_name=f"{ds['name'].replace(' ','_')}_report.pdf",
+                mime="application/pdf", key="dl_pdf_new", use_container_width=True)
 
-        with st.expander("Preview report content", expanded=True):
-            st.markdown(st.session_state.report_content)
+            if geojson:
+                st_folium(make_folium_map(geojson, ds["name"]), width=720, height=340, returned_objects=[], key="map_new_rpt")
 
-        if st.session_state.report_geojson:
-            st.markdown("**Dataset map preview**")
-            m = make_folium_map(st.session_state.report_geojson, ds["name"])
-            st_folium(m, width=750, height=380, returned_objects=[])
+            st.session_state.messages.append({
+                "role": "assistant", "content": rpt_text, "intent": intent,
+                "docx_bytes": docx_bytes, "pdf_bytes": pdf_bytes,
+                "ds_name": ds["name"], "geojson": geojson,
+            })
 
-# ===========================================================================
-# TAB 3 — DATASET SUMMARIZER
-# ===========================================================================
-with tab3:
-    st.markdown("### Summarise any GeoHub dataset in plain language")
-    st.caption("Get an instant plain-English summary — no GIS knowledge needed.")
+    # --- SUMMARY ---
+    elif intent == "summary":
+        with st.chat_message("assistant"):
+            st.markdown('<span class="intent-badge intent-summary">Summary</span>', unsafe_allow_html=True)
+            if not ds:
+                response = "I could not find a matching dataset to summarise. Try a more specific name like 'summarise health facilities'."
+                st.markdown(response)
+                st.session_state.messages.append({"role": "assistant", "content": response, "intent": intent})
+                return
 
-    col_s, col_b = st.columns([4, 1])
-    with col_s:
-        sum_query = st.text_input(
-            "Search for a dataset to summarise",
-            placeholder="e.g. zambia schools, water access points, districts",
-            key="sum_query",
-            label_visibility="collapsed",
-        )
-    with col_b:
-        if st.button("Search", key="sum_search_btn", use_container_width=True):
-            if sum_query.strip():
-                with st.spinner("Searching GeoHub..."):
-                    try:
-                        results = hub.search_datasets(sum_query, max_results=10)
-                        st.session_state.sum_search_results = results
-                        st.session_state.sum_content = None
-                        st.session_state.sum_selected = None
-                    except Exception as e:
-                        st.error(f"Search failed: {e}")
+            stats = summarize_geojson(geojson) if geojson else {"feature_count": 0, "geometry_type": "Unknown", "fields": [], "numeric_stats": {}, "exceeded_limit": False}
+            with st.spinner("Generating summary..."):
+                summary = claude.ask(
+                    system=summarizer_system_prompt(),
+                    user=summarizer_prompt(ds["name"], ds["description"], ds.get("fields", []), sample_features, stats["feature_count"]),
+                    max_tokens=1024,
+                )
 
-    if st.session_state.sum_search_results:
-        options = {ds["name"]: ds for ds in st.session_state.sum_search_results}
-        selected_name = st.selectbox("Choose dataset", list(options.keys()), key="sum_selectbox")
-        st.session_state.sum_selected = options[selected_name]
+            if geojson:
+                s = stats
+                c1, c2, c3 = st.columns(3)
+                c1.metric("Features", f"{s['feature_count']:,}")
+                c2.metric("Geometry", s["geometry_type"].replace("esriGeometry", ""))
+                c3.metric("Fields", len(s["fields"]))
 
-        if st.button("🔍 Summarise Dataset", key="summarise_btn", type="primary"):
-            ds = st.session_state.sum_selected
-            with st.spinner(f"Loading '{ds['name']}' data..."):
-                try:
-                    geojson = hub.fetch_geojson(ds["url"], max_features=max_features)
-                    st.session_state.sum_geojson = geojson
-                except Exception as e:
-                    st.error(f"Failed to load dataset: {e}")
-                    st.stop()
+            st.markdown(f"**Summary: {ds['name']}**")
+            st.markdown(summary)
+            st.download_button("⬇️ Download Summary (.txt)", summary,
+                file_name=f"{ds['name'].replace(' ','_')}_summary.txt",
+                mime="text/plain", key="dl_sum_new")
 
-            geojson = st.session_state.sum_geojson
-            stats = summarize_geojson(geojson)
-            st.session_state.sum_stats = stats
-            samples = geojson_to_sample_rows(geojson, n=5)
+            if geojson:
+                st_folium(make_folium_map(geojson, ds["name"]), width=720, height=340, returned_objects=[], key="map_new_sum")
 
-            with st.spinner("Generating AI summary..."):
-                try:
-                    summary = claude.ask(
-                        system=summarizer_system_prompt(),
-                        user=summarizer_prompt(ds["name"], ds["description"], ds["fields"], samples, stats["feature_count"]),
-                        max_tokens=1024,
-                    )
-                    st.session_state.sum_content = summary
-                except Exception as e:
-                    st.error(f"AI summary failed: {e}")
-                    st.stop()
+            st.session_state.messages.append({
+                "role": "assistant", "content": summary, "intent": intent,
+                "summary_txt": summary, "ds_name": ds["name"], "geojson": geojson,
+            })
 
-    if st.session_state.sum_content:
-        ds = st.session_state.sum_selected
-        stats = st.session_state.sum_stats
+    # --- CHAT (default) ---
+    else:
+        with st.chat_message("assistant"):
+            st.markdown('<span class="intent-badge intent-chat">Answer</span>', unsafe_allow_html=True)
+            user_p = chatbot_user_prompt(question, datasets, sample_features, all_catalog=hub.get_catalog())
+            try:
+                response = st.write_stream(claude.stream(chatbot_system_prompt(), user_p, max_tokens=1500))
+            except Exception as e:
+                response = f"AI error: {e}"
+                st.error(response)
 
-        st.markdown("---")
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Features loaded", f"{stats['feature_count']:,}")
-        m2.metric("Geometry type", stats["geometry_type"].replace("esriGeometry", ""))
-        m3.metric("Fields", len(stats["fields"]))
-        m4.metric("Numeric fields", len(stats.get("numeric_stats", {})))
+            if datasets:
+                with st.expander("Datasets used"):
+                    for d in datasets:
+                        st.markdown(f"- **{d['name']}** — {d['description'][:120]}")
 
-        if stats.get("exceeded_limit"):
-            st.warning("Transfer limit reached — stats based on a partial sample.")
+            if geojson:
+                st_folium(make_folium_map(geojson, ds["name"]), width=720, height=340, returned_objects=[], key="map_new_chat")
 
-        st.markdown(f"#### Summary: {ds['name']}")
-        st.markdown(st.session_state.sum_content)
+            st.session_state.messages.append({
+                "role": "assistant", "content": response, "intent": intent,
+                "ds_name": ds.get("name", ""), "geojson": geojson,
+            })
 
-        st.download_button(
-            "⬇️ Download Summary (.txt)", st.session_state.sum_content,
-            file_name=f"{ds['name'].replace(' ', '_')}_summary.txt",
-            mime="text/plain",
-        )
+# ---------------------------------------------------------------------------
+# Handle pending edited question
+# ---------------------------------------------------------------------------
+if hasattr(st.session_state, "_pending_question") and st.session_state._pending_question:
+    q = st.session_state._pending_question
+    st.session_state._pending_question = None
+    st.session_state.messages.append({"role": "user", "content": q})
+    with st.chat_message("user"):
+        st.markdown(q)
+    process_question(q)
+    st.rerun()
 
-        if ds.get("fields"):
-            with st.expander("Field Reference"):
-                import pandas as pd
-                field_df = pd.DataFrame([
-                    {"Field name": f["name"], "Label": f["alias"], "Type": f["type"]}
-                    for f in ds["fields"]
-                ])
-                st.dataframe(field_df, use_container_width=True)
+# ---------------------------------------------------------------------------
+# Chat input
+# ---------------------------------------------------------------------------
+st.markdown("---")
+col_input, col_clear = st.columns([8, 1])
+with col_clear:
+    if st.session_state.messages:
+        if st.button("🗑️ Clear", use_container_width=True):
+            st.session_state.messages = []
+            st.session_state.edit_idx = None
+            st.rerun()
 
-        if st.session_state.sum_geojson:
-            st.markdown("**Spatial preview**")
-            folium_m = make_folium_map(st.session_state.sum_geojson, ds["name"])
-            st_folium(folium_m, width=750, height=380, returned_objects=[])
+if question := st.chat_input("Ask a question, say 'generate a report on...', or 'summarise...'"):
+    if st.session_state.edit_idx is None:
+        st.session_state.messages.append({"role": "user", "content": question})
+        with st.chat_message("user"):
+            st.markdown(question)
+        process_question(question)
+        st.rerun()
