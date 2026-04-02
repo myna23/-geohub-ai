@@ -40,18 +40,12 @@ st.set_page_config(
 # Sidebar
 # ---------------------------------------------------------------------------
 with st.sidebar:
-    st.markdown("## 🗺️ Zambia GeoHub AI")
-    st.markdown(
-        "AI-powered analysis of Zambia's national geospatial datasets.\n\n"
-        "Powered by **Claude** + **ArcGIS Hub**."
-    )
+    st.markdown("## Zambia GeoHub AI")
+    st.markdown("AI-powered analysis of Zambia's national geospatial datasets.")
     st.markdown("---")
     max_features = st.slider("Max features to load per dataset", 50, 500, 200, step=50)
     st.markdown("---")
-    st.markdown(
-        "**Data source:** [zmb-geowb.hub.arcgis.com](https://zmb-geowb.hub.arcgis.com)\n\n"
-        "**AI engine:** [Anthropic Claude](https://www.anthropic.com)"
-    )
+    st.markdown("**Data source:** [zmb-geowb.hub.arcgis.com](https://zmb-geowb.hub.arcgis.com)")
     st.caption("Data may reflect a sample. Always verify against official sources.")
 
 # ---------------------------------------------------------------------------
