@@ -48,14 +48,41 @@ class HubClient:
         catalog = self._load_catalog()
         return self._rank(query, catalog)[:max_results]
 
-    def fetch_geojson(self, feature_url: str, max_features: int = MAX_FEATURES) -> dict:
-        """Fetch features from a FeatureServer layer as GeoJSON."""
+    # Mapping of user query keywords to POI Type filter values
+    _POI_TYPE_MAP = {
+        "marketplace": "Commercial", "marketplaces": "Commercial", "market": "Commercial",
+        "markets": "Commercial", "shop": "Commercial", "shops": "Commercial",
+        "business": "Commercial", "trade": "Commercial", "commercial": "Commercial",
+        "church": "Religion", "mosque": "Religion", "religion": "Religion",
+        "farm": "Farm", "farming": "Farm", "agriculture": "Farm",
+        "well": "Well", "borehole": "Borehole", "water facility": "Water Facility",
+        "bridge": "Bridge", "dam": "Dam", "airport": "Airport",
+        "bank": "Bank", "police": "Police", "post office": "Post Office",
+        "mining": "Mining", "fisheries": "Fisheries", "cooperative": "Cooperative",
+        "pharmacy": "Pharmacy", "cemetery": "Cemetery", "railway": "Railway",
+        "bus stop": "Bus Stop", "prison": "Prison", "mill": "Mill",
+    }
+
+    def fetch_geojson(self, feature_url: str, max_features: int = MAX_FEATURES, query_hint: str = "") -> dict:
+        """Fetch features from a FeatureServer layer as GeoJSON.
+
+        query_hint: original user query — used to filter POI by type when applicable.
+        """
         base = feature_url.rstrip("/")
         if base.endswith("/query"):
             base = base[:-6]
 
+        # If this is the POI dataset, filter by Type based on the query
+        where = "1=1"
+        if "Points_of_Interest" in base or "POI" in base:
+            hint_lower = query_hint.lower()
+            for keyword, poi_type in self._POI_TYPE_MAP.items():
+                if keyword in hint_lower:
+                    where = f"Type='{poi_type}'"
+                    break
+
         params = {
-            "where": "1=1",
+            "where": where,
             "outFields": "*",
             "resultRecordCount": max_features,
             "f": "geojson",
@@ -167,7 +194,8 @@ class HubClient:
         scored.sort(key=lambda x: x[0], reverse=True)
 
         if not scored:
-            return catalog  # return all if no match
+            # No keyword match — return top 5 most general datasets as fallback
+            return catalog[:5]
 
         return [ds for _, ds in scored]
 
@@ -218,9 +246,26 @@ _SEED_CATALOG = [
      "url": "https://services3.arcgis.com/BU6Aadhn6tbBEdyk/arcgis/rest/services/GRID3_Zambia_Operational_Settlement_Points_and_Names_Version01/FeatureServer/0",
      "tags": ["settlements", "villages", "towns", "population", "zambia", "zmb"], "fields": [], "geometry_type": "Point", "extent": {}, "modified": ""},
     {"id": "8f73c42ed3884256904ae12440fae558", "name": "ZMB Operational Points of Interest",
-     "description": "Points of interest across Zambia including community facilities and services. Source: ZamStats and CLTS.",
+     "description": (
+         "Points of interest across Zambia from ZamStats 2010 census. "
+         "Contains 90,000+ locations categorised by Type including: "
+         "Commercial (marketplaces, shops, businesses, markets), "
+         "Religion (churches, mosques), Farm (agriculture), Well (water), "
+         "Mill, Bridge, Recreation, Storage Facility, Administration, "
+         "Police, Bank, Post Office, Airport, Bus Stop, Mining, Fisheries, "
+         "Cooperative, Pharmacy, Cemetery, Railway, Dam, Borehole, and more. "
+         "Fields: Province, District, Type, Name, Theme, Source."
+     ),
      "url": "https://services3.arcgis.com/BU6Aadhn6tbBEdyk/arcgis/rest/services/GRID3_Zambia_Operational_Points_of_Interest_Version01/FeatureServer/0",
-     "tags": ["points of interest", "poi", "community", "facilities", "zambia", "zmb"], "fields": [], "geometry_type": "Point", "extent": {}, "modified": ""},
+     "tags": [
+         "points of interest", "poi", "zambia", "zmb",
+         "marketplace", "market", "markets", "marketplaces", "commercial", "shops", "business", "trade",
+         "religion", "church", "mosque", "farm", "agriculture", "well", "water",
+         "mill", "bridge", "recreation", "storage", "administration", "police",
+         "bank", "post office", "airport", "bus stop", "mining", "fisheries",
+         "cooperative", "pharmacy", "cemetery", "railway", "dam", "borehole",
+         "community", "facilities", "infrastructure",
+     ], "fields": [], "geometry_type": "Point", "extent": {}, "modified": ""},
     {"id": "3fb6aa51dc9a4df1a1b7f4e48df5a374", "name": "GRID3 ZMB Risk Indicators by District and Province",
      "description": "Risk index and population at risk by district and province — covering socioeconomic vulnerability, WASH, communication access.",
      "url": "https://services3.arcgis.com/BU6Aadhn6tbBEdyk/arcgis/rest/services/Zambia_Risk_Layers_Aggregated_Districts_Provinces/FeatureServer/0",

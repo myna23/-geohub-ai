@@ -271,7 +271,7 @@ def process_question(question: str):
     if datasets:
         with st.spinner(f"Loading data from '{datasets[0]['name']}'..."):
             try:
-                geojson = hub.fetch_geojson(datasets[0]["url"])
+                geojson = hub.fetch_geojson(datasets[0]["url"], query_hint=question)
                 sample_features = geojson_to_sample_rows(geojson, n=10)
             except Exception:
                 pass
